@@ -5,6 +5,7 @@ const livesDisplay = document.getElementById('lives');
 const attackSound = document.getElementById('attack-sound');
 const coinSound = document.getElementById('coin-sound');
 const winSound = document.getElementById('win-sound');
+const explosionSound = document.getElementById('explosion-sound');
 
 let keys = {};
 let paused = false;
@@ -14,6 +15,8 @@ let score = 0;
 let lives = 3;
 let lastSpawnX = 0;
 let nextCheckpoint = 1000;
+let comboCount = 0;
+let comboTimer = 0;
 
 const player = {
   x: 100,
@@ -34,10 +37,12 @@ const playerRightImg = new Image();
 playerRightImg.src = 'player-right.png';
 const playerLeftImg = new Image();
 playerLeftImg.src = 'player-left.png';
-const enemyRightImg = new Image();
-enemyRightImg.src = 'enemy-right.png';
-const enemyLeftImg = new Image();
-enemyLeftImg.src = 'enemy-left.png';
+const patrolImg = new Image();
+patrolImg.src = 'enemy-patrol.png';
+const jumperImg = new Image();
+jumperImg.src = 'enemy-jumper.png';
+const explosionImg = new Image();
+explosionImg.src = 'explosion.png';
 
 let blocks = [], enemies = [], coins = [], checkpoints = [];
 
@@ -84,6 +89,9 @@ function generateWorldSegment() {
   }
 
   for (let i = segmentStart + 300; i < segmentEnd; i += 500) {
+    const tipo = Math.random() < 0.5 ? 'patrullador' : 'saltador';
+    const sprite = tipo === 'patrullador' ? patrolImg : jumperImg;
+
     enemies.push({
       x: i,
       y: groundY - 248,
@@ -94,7 +102,12 @@ function generateWorldSegment() {
       hitboxWidth: 88,
       hitboxHeight: 128,
       hp: 1,
-      dx: Math.random() < 0.5 ? -1 : 1,
+      dx: tipo === 'patrullador' ? (Math.random() < 0.5 ? -2 : 2) : 0,
+      dy: tipo === 'saltador' ? (Math.random() < 0.5 ? -2 : 2) : 0,
+      type: tipo,
+      sprite: sprite,
+      exploding: false,
+      explosionTimer: 0,
       active: true
     });
   }
@@ -157,11 +170,42 @@ function updateEnemies() {
   enemies.forEach(en => {
     if (!en.active) return;
 
-    const dist = Math.abs(player.x - en.x);
-    if (dist < 300) {
-      en.x += player.x < en.x ? -2 : 2;
-    } else {
-      en.active = false;
+    if (en.exploding) {
+      en.explosionTimer--;
+      if (en.explosionTimer <= 0) {
+        en.hp = 0;
+      }
+      return;
+    }
+
+    if (en.type === 'patrullador') {
+      en.x += en.dx;
+      blocks.forEach(block => {
+        const hitbox = {
+          x: en.x + en.hitboxOffsetX,
+          y: en.y + en.hitboxOffsetY,
+          width: en.hitboxWidth,
+          height: en.hitboxHeight
+        };
+        if (detectCollision(hitbox, block)) {
+          en.dx *= -1;
+        }
+      });
+    }
+
+    if (en.type === 'saltador') {
+      en.y += en.dy;
+      blocks.forEach(block => {
+        const hitbox = {
+          x: en.x + en.hitboxOffsetX,
+          y: en.y + en.hitboxOffsetY,
+          width: en.hitboxWidth,
+          height: en.hitboxHeight
+        };
+        if (detectCollision(hitbox, block)) {
+          en.dy *= -1;
+        }
+      });
     }
 
     const playerHitbox = {
@@ -179,14 +223,22 @@ function updateEnemies() {
     };
 
     if (player.attack && detectCollision(playerHitbox, enemyHitbox)) {
-      en.hp = 0;
-      score += 10;
-      scoreDisplay.textContent = score;
+      if (!en.exploding) {
+        en.exploding = true;
+        en.explosionTimer = 30;
+        explosionSound.play();
+        comboCount++;
+        comboTimer = 120;
+        score += 10 + comboCount * 2;
+        scoreDisplay.textContent = score;
+      }
     }
 
     if (!player.attack && detectCollision(playerHitbox, enemyHitbox)) {
       lives--;
       livesDisplay.textContent = lives;
+      comboCount = 0;
+      comboTimer = 0;
       if (lives <= 0) {
         alert('¡Has perdido!');
         location.reload();
@@ -218,10 +270,10 @@ function checkCheckpoints() {
       cp.triggered = true;
       const respuesta = prompt(cp.question);
       if (respuesta && respuesta.toLowerCase() === cp.answer.toLowerCase()) {
-        alert("¡Progreso guardado!");
-      } else {
-        alert("Respuesta incorrecta.");
-      }
+  alert("¡Progreso guardado!");
+} else {
+  alert("Respuesta incorrecta.");
+}
     }
   });
 }
@@ -241,8 +293,8 @@ function draw() {
   coins.forEach(c => ctx.fillRect(c.x, c.y, c.width, c.height));
 
   enemies.forEach(e => {
-    const img = e.dx >= 0 ? enemyRightImg : enemyLeftImg;
-    ctx.drawImage(img, e.x, e.y, e.width, e.height);
+    const sprite = e.exploding ? explosionImg : e.sprite;
+    ctx.drawImage(sprite, e.x, e.y, e.width, e.height);
   });
 
   ctx.fillStyle = 'purple';
@@ -269,8 +321,20 @@ function draw() {
       );
     });
 
-    ctx.strokeStyle = 'blue';
-    ctx.strokeRect(goal.x, goal.y, goal.width, goal.height);
+    ctx.strokeStyle = 'gray';
+    blocks.forEach(b => {
+      ctx.strokeRect(b.x, b.y, b.width, b.height);
+    });
+
+    ctx.strokeStyle = 'gold';
+    coins.forEach(c => {
+      ctx.strokeRect(c.x, c.y, c.width, c.height);
+    });
+
+    ctx.strokeStyle = 'purple';
+    checkpoints.forEach(cp => {
+      ctx.strokeRect(cp.x, cp.y, cp.width, cp.height);
+    });
   }
 
   ctx.restore();
@@ -283,9 +347,15 @@ function gameLoop() {
     updateCoins();
     checkCheckpoints();
     draw();
+
+    if (comboTimer > 0) {
+      comboTimer--;
+    } else {
+      comboCount = 0;
+    }
   }
   requestAnimationFrame(gameLoop);
 }
 
-generateWorldSegment(); // inicializa el primer segmento
+generateWorldSegment();
 gameLoop();
