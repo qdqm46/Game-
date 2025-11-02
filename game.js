@@ -15,9 +15,9 @@ let lives = 3;
 
 const player = {
   x: 100,
-  y: groundY - 40,
-  width: 40,
-  height: 40,
+  y: groundY - 248,
+  width: 248,
+  height: 248,
   dy: 0,
   grounded: true,
   attack: false,
@@ -43,7 +43,7 @@ document.addEventListener('keyup', e => keys[e.code] = false);
 
 document.addEventListener('keydown', e => {
   if (e.code === 'Space' && player.grounded) {
-    player.dy = -12;
+    player.dy = -20;
     player.grounded = false;
   }
   if (e.code === 'KeyF') {
@@ -74,25 +74,25 @@ function setupLevel() {
   score = 0;
   lives = 3;
   player.x = 100;
-  player.y = groundY - 40;
+  player.y = groundY - player.height;
 
   for (let i = 400; i < levelWidth - 400; i += 400) {
-    blocks.push({ x: i, y: 200 + (i % 300), width: 50, height: 20 });
-    coins.push({ x: i + 100, y: 150 + (i % 200), width: 20, height: 20 });
+    blocks.push({ x: i, y: 300, width: 50, height: 20 });
+    coins.push({ x: i + 100, y: 250, width: 20, height: 20 });
   }
 
   for (let i = 800; i < levelWidth - 800; i += 800) {
     enemies.push({
       x: i,
-      y: groundY - 40,
-      width: 40,
-      height: 40,
+      y: groundY - 248,
+      width: 248,
+      height: 248,
       hp: 1,
       dx: Math.random() < 0.5 ? -1 : 1
     });
   }
 
-  goal = { x: levelWidth - 200, y: groundY - 40, width: 40, height: 40 };
+  goal = { x: levelWidth - 200, y: groundY - 248, width: 248, height: 248 };
 }
 
 function updatePlayer() {
@@ -137,7 +137,7 @@ function updateEnemies() {
     if (en.x < 0 || en.x > levelWidth - en.width) en.dx *= -1;
 
     const dist = Math.abs(player.x - en.x);
-    if (dist < 200) en.dx = player.x < en.x ? -2 : 2;
+    if (dist < 300) en.dx = player.x < en.x ? -2 : 2;
 
     if (player.attack && detectCollision(player, en)) {
       en.hp = 0;
@@ -153,7 +153,7 @@ function updateEnemies() {
         location.reload();
       } else {
         player.x = 100;
-        player.y = groundY - 40;
+        player.y = groundY - player.height;
       }
     }
   });
