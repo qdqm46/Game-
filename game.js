@@ -21,12 +21,7 @@ const player = {
   width: 64,
   height: 64,
   dy: 0,
-  grounded: true,
-  direction: 'right',
-  hitboxOffsetX: 12,
-  hitboxOffsetY: 12,
-  hitboxWidth: 40,
-  hitboxHeight: 40
+  grounded: true
 };
 
 const blocks = [];
@@ -117,9 +112,7 @@ function generateWorldSegment() {
       width: 64,
       height: 64,
       dx: 2,
-      active: true,
-      patrolMin: i + 100,
-      patrolMax: i + 300 - 64
+      active: true
     });
 
     coins.push({ x: i + 180, y: platformY - 40, width: 40, height: 40 });
@@ -150,139 +143,13 @@ function generateWorldSegment() {
 
   lastSpawnX = segmentEnd;
 }
-
-function updatePlayer() {
-  if (keys['ArrowRight']) player.x += 4;
-  if (keys['ArrowLeft']) player.x -= 4;
-
-  player.dy += 1.2;
-  player.y += player.dy;
-
-  if (player.y + player.height >= groundY) {
-    player.y = groundY - player.height;
-    player.dy = 0;
-    player.grounded = true;
-  }
-
-  if (keys['Space'] && player.grounded) {
-    player.dy = -24;
-    player.grounded = false;
-  }
-
-  blocks.forEach(block => {
-    const hitbox = {
-      x: player.x + player.hitboxOffsetX,
-      y: player.y + player.hitboxOffsetY,
-      width: player.hitboxWidth,
-      height: player.hitboxHeight
-    };
-
-    if (
-      player.dy < 0 &&
-      hitbox.y <= block.y + block.height &&
-      hitbox.y + hitbox.height > block.y + block.height &&
-      hitbox.x < block.x + block.width &&
-      hitbox.x + hitbox.width > block.x
-    ) {
-      player.dy = 0;
-      player.y = block.y + block.height - player.hitboxOffsetY;
-    }
-
-    if (
-      player.dy >= 0 &&
-      hitbox.y + hitbox.height >= block.y &&
-      hitbox.y < block.y &&
-      hitbox.x < block.x + block.width &&
-      hitbox.x + hitbox.width > block.x
-    ) {
-      player.y = block.y - player.hitboxOffsetY - player.hitboxHeight;
-      player.dy = 0;
-      player.grounded = true;
-    }
-  });
-
-  if (player.x + canvas.width > lastSpawnX - 400) {
-    generateWorldSegment();
-  }
-}
-
-function updateEnemies() {
-  enemies.forEach(en => {
-    if (!en.active) return;
-
-    en.x += en.dx;
-
-    if (en.patrolMin !== undefined && en.patrolMax !== undefined) {
-      if (en.x < en.patrolMin || en.x > en.patrolMax) {
-        en.dx *= -1;
-        en.x = Math.max(en.patrolMin, Math.min(en.x, en.patrolMax));
-      }
-    }
-
-    blocks.forEach(block => {
-      if (block.width === 40) {
-        const enemyHitbox = {
-          x: en.x,
-          y: en.y,
-          width: en.width,
-          height: en.height
-        };
-        if (detectCollision(enemyHitbox, block)) {
-          en.dx *= -1;
-        }
-      }
-    });
-
-    const playerHitbox = {
-      x: player.x + player.hitboxOffsetX,
-      y: player.y + player.hitboxOffsetY,
-      width: player.hitboxWidth,
-      height: player.hitboxHeight
-    };
-
-    const enemyHitbox = {
-      x: en.x,
-      y: en.y,
-      width: en.width,
-      height: en.height
-    };
-
-    if (detectCollision(playerHitbox, enemyHitbox)) {
-      lives--;
-      livesDisplay.textContent = lives;
-
-      if (lives <= 0) {
-        mostrarPreguntaTestVisual(correcta => {
-          if (correcta) {
-            alert("¡Correcto! Has ganado una vida extra.");
-            lives = 1;
-            livesDisplay.textContent = lives;
-            player.x = 100;
-            player.y = groundY - player.height;
-          } else {
-            alert("Has perdido. Recarga la página para intentarlo de nuevo.");
-          }
-        });
-      } else {
-        if (checkpointGuardado) {
-          player.x = checkpointGuardado.x;
-          player.y = checkpointGuardado.y;
-        } else {
-          player.x = 100;
-          player.y = groundY - player.height;
-        }
-      }
-    }
-  });
-}
-
 function updateCoins() {
   coins.forEach((coin, i) => {
     const hitbox = {
-      x: player.x + player.hitboxOffsetX,
-      y: player.y + player.hitboxOffsetY,
-      width: player.hitboxWidth,
-      height: player.hitboxHeight
+      x: player.x,
+      y: player.y,
+      width: player.width,
+      height: player.height
     };
     if (detectCollision(hitbox, coin)) {
       score += 5;
