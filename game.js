@@ -13,20 +13,20 @@ let lives = 3;
 let groundY = canvas.height - 50;
 let lastSpawnX = 0;
 let nextCheckpoint = 1000;
-let checkpointGuardado = { x: 100, y: groundY - 248 };
+let checkpointGuardado = { x: 100, y: groundY - 64 };
 
 const player = {
   x: 100,
-  y: groundY - 248,
-  width: 248,
-  height: 248,
+  y: groundY - 64,
+  width: 64,
+  height: 64,
   dy: 0,
   grounded: true,
   direction: 'right',
-  hitboxOffsetX: 80,
-  hitboxOffsetY: 60,
-  hitboxWidth: 88,
-  hitboxHeight: 128
+  hitboxOffsetX: 12,
+  hitboxOffsetY: 12,
+  hitboxWidth: 40,
+  hitboxHeight: 40
 };
 
 const blocks = [];
@@ -57,7 +57,6 @@ function detectCollision(a, b) {
 
 function mostrarPreguntaTestVisual(callback) {
   preguntaActiva = true;
-  document.body.classList.add('pregunta-activa');
 
   const disponibles = preguntas
     .map((p, i) => ({ ...p, index: i }))
@@ -65,7 +64,6 @@ function mostrarPreguntaTestVisual(callback) {
 
   if (disponibles.length === 0) {
     preguntaActiva = false;
-    document.body.classList.remove('pregunta-activa');
     return callback(false);
   }
 
@@ -88,7 +86,6 @@ function mostrarPreguntaTestVisual(callback) {
     btn.onclick = () => {
       box.classList.add('hidden');
       overlay.style.display = 'none';
-      document.body.classList.remove('pregunta-activa');
       preguntaActiva = false;
       callback(i === pregunta.respuesta);
     };
@@ -100,60 +97,45 @@ function generateWorldSegment() {
   const segmentStart = lastSpawnX;
   const segmentEnd = segmentStart + 1000;
 
-  // Suelo continuo
   for (let i = segmentStart; i < segmentEnd; i += 100) {
     blocks.push({ x: i, y: groundY, width: 100, height: 50 });
   }
 
-  // Muro inicial
   if (segmentStart === 0) {
     blocks.push({ x: -100, y: groundY - 200, width: 100, height: 200 });
   }
 
-  // Obstáculos verticales y plataformas
   for (let i = segmentStart + 200; i < segmentEnd; i += 400) {
-    blocks.push({ x: i, y: groundY - 88, width: 40, height: 88 }); // vertical
+    blocks.push({ x: i, y: groundY - 88, width: 40, height: 88 });
 
     const platformY = groundY - 200;
-    blocks.push({ x: i + 100, y: platformY, width: 200, height: 40 }); // aérea
+    blocks.push({ x: i + 100, y: platformY, width: 200, height: 40 });
 
-    // Enemigo sobre plataforma
     enemies.push({
       x: i + 120,
-      y: platformY - 248,
-      width: 248,
-      height: 248,
-      hitboxOffsetX: 80,
-      hitboxOffsetY: 60,
-      hitboxWidth: 88,
-      hitboxHeight: 128,
+      y: platformY - 64,
+      width: 64,
+      height: 64,
       dx: 2,
       active: true,
       patrolMin: i + 100,
-      patrolMax: i + 300 - 248
+      patrolMax: i + 300 - 64
     });
 
-    // Moneda sobre plataforma
     coins.push({ x: i + 180, y: platformY - 40, width: 40, height: 40 });
   }
 
-  // Enemigos en el suelo
   for (let i = segmentStart + 300; i < segmentEnd; i += 500) {
     enemies.push({
       x: i,
-      y: groundY - 248,
-      width: 248,
-      height: 248,
-      hitboxOffsetX: 80,
-      hitboxOffsetY: 60,
-      hitboxWidth: 88,
-      hitboxHeight: 128,
+      y: groundY - 64,
+      width: 64,
+      height: 64,
       dx: Math.random() < 0.5 ? -2 : 2,
       active: true
     });
   }
 
-  // Checkpoint
   if (segmentEnd >= nextCheckpoint) {
     checkpoints.push({
       x: segmentEnd - 100,
@@ -168,33 +150,25 @@ function generateWorldSegment() {
 
   lastSpawnX = segmentEnd;
 }
+
 function updatePlayer() {
-  if (keys['ArrowRight']) {
-    player.x += 4;
-    player.direction = 'right';
-  }
-  if (keys['ArrowLeft']) {
-    player.x -= 4;
-    player.direction = 'left';
-  }
+  if (keys['ArrowRight']) player.x += 4;
+  if (keys['ArrowLeft']) player.x -= 4;
 
   player.dy += 1.2;
   player.y += player.dy;
 
-  // Suelo
   if (player.y + player.height >= groundY) {
     player.y = groundY - player.height;
     player.dy = 0;
     player.grounded = true;
   }
 
-  // Saltar
   if (keys['Space'] && player.grounded) {
-    player.dy = -28;
+    player.dy = -24;
     player.grounded = false;
   }
 
-  // Colisiones con bloques
   blocks.forEach(block => {
     const hitbox = {
       x: player.x + player.hitboxOffsetX,
@@ -203,7 +177,6 @@ function updatePlayer() {
       height: player.hitboxHeight
     };
 
-    // Desde abajo
     if (
       player.dy < 0 &&
       hitbox.y <= block.y + block.height &&
@@ -215,7 +188,6 @@ function updatePlayer() {
       player.y = block.y + block.height - player.hitboxOffsetY;
     }
 
-    // Desde arriba
     if (
       player.dy >= 0 &&
       hitbox.y + hitbox.height >= block.y &&
@@ -229,7 +201,6 @@ function updatePlayer() {
     }
   });
 
-  // Generar nuevo segmento si se acerca al final
   if (player.x + canvas.width > lastSpawnX - 400) {
     generateWorldSegment();
   }
@@ -241,7 +212,6 @@ function updateEnemies() {
 
     en.x += en.dx;
 
-    // Patrulla en plataforma
     if (en.patrolMin !== undefined && en.patrolMax !== undefined) {
       if (en.x < en.patrolMin || en.x > en.patrolMax) {
         en.dx *= -1;
@@ -249,14 +219,13 @@ function updateEnemies() {
       }
     }
 
-    // Colisión con obstáculos verticales
     blocks.forEach(block => {
       if (block.width === 40) {
         const enemyHitbox = {
-          x: en.x + en.hitboxOffsetX,
-          y: en.y + en.hitboxOffsetY,
-          width: en.hitboxWidth,
-          height: en.hitboxHeight
+          x: en.x,
+          y: en.y,
+          width: en.width,
+          height: en.height
         };
         if (detectCollision(enemyHitbox, block)) {
           en.dx *= -1;
@@ -264,7 +233,6 @@ function updateEnemies() {
       }
     });
 
-    // Colisión con jugador
     const playerHitbox = {
       x: player.x + player.hitboxOffsetX,
       y: player.y + player.hitboxOffsetY,
@@ -273,10 +241,10 @@ function updateEnemies() {
     };
 
     const enemyHitbox = {
-      x: en.x + en.hitboxOffsetX,
-      y: en.y + en.hitboxOffsetY,
-      width: en.hitboxWidth,
-      height: en.hitboxHeight
+      x: en.x,
+      y: en.y,
+      width: en.width,
+      height: en.height
     };
 
     if (detectCollision(playerHitbox, enemyHitbox)) {
