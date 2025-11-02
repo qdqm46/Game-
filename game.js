@@ -23,10 +23,10 @@ const player = {
   grounded: true,
   attack: false,
   direction: 'right',
-  hitboxOffsetX: 60,
-  hitboxOffsetY: 40,
-  hitboxWidth: 128,
-  hitboxHeight: 168
+  hitboxOffsetX: 80,
+  hitboxOffsetY: 60,
+  hitboxWidth: 88,
+  hitboxHeight: 128
 };
 
 const playerRightImg = new Image();
@@ -96,10 +96,10 @@ function setupLevel() {
       y: groundY - 248,
       width: 248,
       height: 248,
-      hitboxOffsetX: 60,
-      hitboxOffsetY: 40,
-      hitboxWidth: 128,
-      hitboxHeight: 168,
+      hitboxOffsetX: 80,
+      hitboxOffsetY: 60,
+      hitboxWidth: 88,
+      hitboxHeight: 128,
       hp: 1,
       dx: Math.random() < 0.5 ? -1 : 1
     });
