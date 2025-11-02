@@ -187,4 +187,36 @@ function draw() {
   ctx.save();
   ctx.translate(-player.x + canvas.width / 2, 0);
 
-  const
+  const playerImg = player.direction === 'right' ? playerRightImg : playerLeftImg;
+  ctx.drawImage(playerImg, player.x, player.y, player.width, player.height);
+
+  ctx.fillStyle = 'gray';
+  blocks.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
+
+  ctx.fillStyle = 'gold';
+  coins.forEach(c => ctx.fillRect(c.x, c.y, c.width, c.height));
+
+  enemies.forEach(e => {
+    const enemyImg = e.dx >= 0 ? enemyRightImg : enemyLeftImg;
+    ctx.drawImage(enemyImg, e.x, e.y, e.width, e.height);
+  });
+
+  ctx.fillStyle = 'blue';
+  ctx.fillRect(goal.x, goal.y, goal.width, goal.height);
+
+  ctx.restore();
+}
+
+function gameLoop() {
+  if (!paused) {
+    updatePlayer();
+    updateEnemies();
+    updateCoins();
+    checkVictory();
+    draw();
+  }
+  requestAnimationFrame(gameLoop);
+}
+
+setupLevel();
+gameLoop();
