@@ -8,6 +8,7 @@ const winSound = document.getElementById('win-sound');
 
 let keys = {};
 let paused = false;
+let debugMode = false;
 let levelWidth = 3000;
 let groundY = canvas.height - 50;
 let score = 0;
@@ -22,10 +23,10 @@ const player = {
   grounded: true,
   attack: false,
   direction: 'right',
-  hitboxOffsetX: 40,
+  hitboxOffsetX: 60,
   hitboxOffsetY: 40,
-  hitboxWidth: 168,
-  hitboxHeight: 208
+  hitboxWidth: 128,
+  hitboxHeight: 168
 };
 
 const playerRightImg = new Image();
@@ -58,6 +59,10 @@ document.addEventListener('keydown', e => {
   if (e.code === 'KeyP') {
     togglePause();
   }
+  if (e.code === 'F5') {
+    e.preventDefault();
+    debugMode = !debugMode;
+  }
 });
 
 function togglePause() {
@@ -81,8 +86,8 @@ function setupLevel() {
   player.y = groundY - player.height;
 
   for (let i = 400; i < levelWidth - 400; i += 400) {
-    blocks.push({ x: i, y: 200, width: 200, height: 40 });
-    coins.push({ x: i + 100, y: 140, width: 60, height: 60 });
+    blocks.push({ x: i, y: 160, width: 200, height: 40 });
+    coins.push({ x: i + 100, y: 100, width: 60, height: 60 });
   }
 
   for (let i = 800; i < levelWidth - 800; i += 800) {
@@ -91,10 +96,10 @@ function setupLevel() {
       y: groundY - 248,
       width: 248,
       height: 248,
-      hitboxOffsetX: 40,
+      hitboxOffsetX: 60,
       hitboxOffsetY: 40,
-      hitboxWidth: 168,
-      hitboxHeight: 208,
+      hitboxWidth: 128,
+      hitboxHeight: 168,
       hp: 1,
       dx: Math.random() < 0.5 ? -1 : 1
     });
@@ -123,14 +128,18 @@ function updatePlayer() {
   }
 
   blocks.forEach(block => {
-    if (detectCollision(player, block) && player.dy >= 0 &&
-        player.y + player.height <= block.y + player.dy) {
-      player.y = block.y - player.height;
+    const playerHitbox = {
+      x: player.x + player.hitboxOffsetX,
+      y: player.y + player.hitboxOffsetY + player.dy,
+      width: player.hitboxWidth,
+      height: player.hitboxHeight
+    };
+    if (detectCollision(playerHitbox, block) && player.dy >= 0) {
+      player.y = block.y - player.hitboxOffsetY - player.hitboxHeight;
       player.dy = 0;
       player.grounded = true;
     }
-    if (detectCollision(player, block) && player.dy < 0 &&
-        player.y >= block.y + block.height - player.dy) {
+    if (detectCollision(playerHitbox, block) && player.dy < 0) {
       player.dy = 0;
     }
   });
@@ -225,6 +234,39 @@ function draw() {
 
   ctx.fillStyle = 'blue';
   ctx.fillRect(goal.x, goal.y, goal.width, goal.height);
+
+  if (debugMode) {
+    ctx.strokeStyle = 'red';
+    ctx.strokeRect(
+      player.x + player.hitboxOffsetX,
+      player.y + player.hitboxOffsetY,
+      player.hitboxWidth,
+      player.hitboxHeight
+    );
+
+    ctx.strokeStyle = 'green';
+    enemies.forEach(e => {
+      ctx.strokeRect(
+        e.x + e.hitboxOffsetX,
+        e.y + e.hitboxOffsetY,
+        e.hitboxWidth,
+        e.hitboxHeight
+      );
+    });
+
+    ctx.strokeStyle = 'gray';
+    blocks.forEach(b => {
+      ctx.strokeRect(b.x, b.y, b.width, b.height);
+    });
+
+    ctx.strokeStyle = 'gold';
+    coins.forEach(c => {
+      ctx.strokeRect(c.x, c.y, c.width, c.height);
+    });
+
+    ctx.strokeStyle = 'blue';
+    ctx.strokeRect(goal.x, goal.y, goal.width, goal.height);
+  }
 
   ctx.restore();
 }
