@@ -21,11 +21,11 @@ function resizeCanvas() {
   groundY = canvas.height - 50;
 }
 window.addEventListener('resize', resizeCanvas);
-resizeCanvas(); // Inicializa el canvas al cargar
+resizeCanvas();
 
 // 🧍 Configuración del jugador
 const player = {
-  x: 50, // Comienza cerca del borde izquierdo
+  x: 50,
   y: groundY - 248,
   width: 248,
   height: 248,
@@ -50,16 +50,16 @@ const enemyLeftImg = new Image();
 enemyLeftImg.src = 'assets/enemy-left.png';
 
 // 🧱 Elementos del mundo
-let blocks = [];       // Obstáculos y suelo
-let enemies = [];      // Enemigos
-let coins = [];        // Monedas (si se usan)
-let checkpoints = [];  // Preguntas interactivas
+let blocks = [];
+let enemies = [];
+let coins = [];
+let checkpoints = [];
 
 // ❓ Banco de preguntas
 let questionBank = [];
 let usedQuestions = new Set();
 
-// 📦 Carga de preguntas desde archivo JSON
+// 📦 Carga de preguntas
 fetch('questions.json')
   .then(res => res.json())
   .then(data => {
@@ -69,61 +69,163 @@ fetch('questions.json')
 // ▶️ Botón de inicio
 document.getElementById('start-button').addEventListener('click', () => {
   document.getElementById('start-menu').style.display = 'none';
-  generateWorldSegment(); // Genera el primer segmento del mundo
-  gameLoop();             // Inicia el bucle del juego
+  generateWorldSegment();
+  gameLoop();
 });
 
 // 🎹 Captura de teclas
 document.addEventListener('keydown', e => keys[e.code] = true);
 document.addEventListener('keyup', e => keys[e.code] = false);
 
-// 🕹️ Acciones especiales del jugador
+// 🕹️ Acciones del jugador
 document.addEventListener('keydown', e => {
   if (e.code === 'Space' && player.grounded) {
-    player.dy = -28; // Salto
+    player.dy = -28;
     player.grounded = false;
   }
   if (e.code === 'KeyF') {
-    player.attack = true; // Ataque
+    player.attack = true;
     setTimeout(() => player.attack = false, 300);
   }
-  if (e.code === 'KeyP') paused = !paused; // Pausa
+  if (e.code === 'KeyP') paused = !paused;
   if (e.code === 'F5') {
     e.preventDefault();
-    debugMode = !debugMode; // Modo debug
+    debugMode = !debugMode;
   }
 });
 
-// 🔍 Detección de colisiones entre dos objetos
+// 🔍 Colisión entre objetos
 function detectCollision(a, b) {
   return a.x < b.x + b.width &&
          a.x + a.width > b.x &&
          a.y < b.y + b.height &&
          a.y + a.height > b.y;
 }
-// 🧍 Actualización del jugador
+
+// 🌍 Generación del mundo
+function generateWorldSegment() {
+  const segmentStart = lastSpawnX;
+  const segmentEnd = segmentStart + 800;
+
+  // 🧱 Muro insuperable al inicio
+  if (segmentStart === 0) {
+    blocks.push({
+      x: -100,
+      y: groundY - 1000,
+      width: 100,
+      height: 2000
+    });
+  }
+
+  // 🧱 Suelo como bloques
+  for (let i = segmentStart; i < segmentEnd; i += 40) {
+    blocks.push({
+      x: i,
+      y: groundY - 40,
+      width: 40,
+      height: 40
+    });
+  }
+
+  // 🧗 Obstáculos superiores (máximo 2 por segmento)
+  let upperObstacles = 0;
+  const upperPlatforms = [];
+  for (let i = segmentStart + 200; i < segmentEnd; i += 400) {
+    if (Math.random() < 0.4 && upperObstacles < 2) {
+      const platform = {
+        x: i,
+        y: groundY - 200,
+        width: 100,
+        height: 40
+      };
+      blocks.push(platform);
+      upperPlatforms.push(platform);
+      upperObstacles++;
+    }
+  }
+
+  // 👾 Enemigos sobre el suelo
+  for (let i = segmentStart + 300; i < segmentEnd; i += 600) {
+    enemies.push({
+      x: i,
+      y: groundY - 248,
+      width: 248,
+      height: 248,
+      hitboxOffsetX: 80,
+      hitboxOffsetY: 60,
+      hitboxWidth: 88,
+      hitboxHeight: 128,
+      hp: 1,
+      dx: 2,
+      active: true,
+      patrolMin: i - 100,
+      patrolMax: i + 100
+    });
+  }
+
+  // 👾 Enemigos sobre plataformas superiores
+  upperPlatforms.forEach(platform => {
+    enemies.push({
+      x: platform.x + 10,
+      y: platform.y - 248,
+      width: 248,
+      height: 248,
+      hitboxOffsetX: 80,
+      hitboxOffsetY: 60,
+      hitboxWidth: 88,
+      hitboxHeight: 128,
+      hp: 1,
+      dx: 2,
+      active: true,
+      patrolMin: platform.x,
+      patrolMax: platform.x + platform.width - 248
+    });
+  });
+
+  // ❓ Checkpoints con preguntas
+  if (segmentEnd >= nextCheckpoint && questionBank.length > usedQuestions.size) {
+    const availableQuestions = questionBank.filter(q => !usedQuestions.has(q.question));
+    if (availableQuestions.length > 0) {
+      const q = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
+      usedQuestions.add(q.question);
+
+      checkpoints.push({
+        x: segmentEnd,
+        y: groundY - 60,
+        width: 60,
+        height: 60,
+        question: q.question,
+        answer: q.answer,
+        triggered: false
+      });
+
+      nextCheckpoint += 2000;
+    }
+  }
+
+  lastSpawnX = segmentEnd;
+}
+
+// 🧍 Movimiento y colisiones del jugador
 function updatePlayer() {
   if (keys['ArrowRight']) {
     player.x += 4;
     player.direction = 'right';
   }
-  // 🚫 Limita el movimiento hacia la izquierda para no atravesar el muro
   if (keys['ArrowLeft'] && player.x > 0) {
     player.x -= 4;
     player.direction = 'left';
   }
 
-  player.dy += 1.2; // Gravedad
+  player.dy += 1.2;
   player.y += player.dy;
 
-  // 🧱 Colisión con el suelo infinito
   if (player.y + player.height >= groundY) {
     player.y = groundY - player.height;
     player.dy = 0;
     player.grounded = true;
   }
 
-  // 🧱 Colisiones con bloques
   blocks.forEach(block => {
     const hitbox = {
       x: player.x + player.hitboxOffsetX,
@@ -132,7 +234,6 @@ function updatePlayer() {
       height: player.hitboxHeight
     };
 
-    // Colisión superior
     if (
       player.dy < 0 &&
       hitbox.y <= block.y + block.height &&
@@ -144,7 +245,6 @@ function updatePlayer() {
       player.y = block.y + block.height - player.hitboxOffsetY;
     }
 
-    // Colisión inferior
     if (
       player.dy >= 0 &&
       hitbox.y + hitbox.height >= block.y &&
@@ -158,13 +258,12 @@ function updatePlayer() {
     }
   });
 
-  // 🌍 Generar nuevo segmento si se acerca al borde
   if (player.x + canvas.width > lastSpawnX - 400) {
     generateWorldSegment();
   }
 }
 
-// 👾 Actualización de enemigos
+// 👾 Movimiento y colisiones de enemigos
 function updateEnemies() {
   enemies.forEach(en => {
     if (!en.active) return;
@@ -172,15 +271,11 @@ function updateEnemies() {
     const speed = 2 + Math.floor(player.x / 1000) * 0.5;
     en.x += en.dx >= 0 ? speed : -speed;
 
-    // Patrullaje dentro de límites
-    if (en.patrolMin !== undefined && en.patrolMax !== undefined) {
-      if (en.x < en.patrolMin || en.x > en.patrolMax) {
-        en.dx *= -1;
-        en.x = Math.max(en.patrolMin, Math.min(en.x, en.patrolMax));
-      }
+    if (en.x < en.patrolMin || en.x > en.patrolMax) {
+      en.dx *= -1;
+      en.x = Math.max(en.patrolMin, Math.min(en.x, en.patrolMax));
     }
 
-    // Colisión con el jugador
     const playerHitbox = {
       x: player.x + player.hitboxOffsetX,
       y: player.y + player.hitboxOffsetY,
@@ -195,7 +290,7 @@ function updateEnemies() {
       height: en.hitboxHeight
     };
 
-    if (detectCollision(playerHitbox, enemyHitbox)) {
+        if (detectCollision(playerHitbox, enemyHitbox)) {
       lives--;
       livesDisplay.textContent = lives;
       if (lives <= 0) {
@@ -208,7 +303,6 @@ function updateEnemies() {
     }
   });
 
-  // Eliminar enemigos derrotados
   enemies = enemies.filter(en => en.hp > 0);
 }
 
