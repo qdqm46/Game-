@@ -256,13 +256,13 @@ function updateEnemies() {
   enemies.forEach(en => {
     if (!en.active || dying) return;
 
-    const distance = Math.abs(en.x - player.x);
     const speed = 2;
 
-    if (distance < 300) {
-      en.dx = player.x > en.x ? 1 : -1;
-    }
+    // 🧠 Dirección hacia el jugador
+    en.dx = player.x > en.x ? 1 : -1;
+    en.x += en.dx * speed;
 
+    // 🧱 Rebotar si chocan con bloques o pared izquierda
     const nextX = en.x + (en.dx > 0 ? en.width : -5);
     const nextY = en.y + en.height - 5;
     const blocked = blocks.some(block =>
@@ -272,9 +272,11 @@ function updateEnemies() {
       nextY + 5 > block.y
     );
 
-    if (blocked) en.dx *= -1;
-    en.x += en.dx * speed;
+    if (blocked || en.x < 40) {
+      en.x -= en.dx * speed; // retroceder si bloqueado
+    }
 
+    // 🎯 Colisión con el jugador
     const playerHitbox = {
       x: player.x + player.hitboxOffsetX,
       y: player.y + player.hitboxOffsetY,
@@ -302,6 +304,7 @@ function updateEnemies() {
 
   enemies = enemies.filter(en => en.hp > 0);
 }
+
 
 function updateCoins() {
   coins = coins.filter(coin => {
@@ -520,4 +523,5 @@ async function uploadLeaderboardToGitHub() {
     console.error('Error al conectar con GitHub:', error);
   }
 }
+
 
