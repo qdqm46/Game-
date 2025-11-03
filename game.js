@@ -101,110 +101,6 @@ function detectCollision(a, b) {
          a.y < b.y + b.height &&
          a.y + a.height > b.y;
 }
-
-// 🧱 Generación del mundo: suelo, obstáculos y enemigos
-function generateWorldSegment() {
-  const segmentStart = lastSpawnX;
-  const segmentEnd = segmentStart + 800;
-
-  // 🧱 Muro insuperable en el extremo izquierdo (solo una vez)
-  if (segmentStart === 0) {
-    blocks.push({
-      x: -100,
-      y: groundY - 1000,
-      width: 100,
-      height: 2000
-    });
-  }
-
-  // 🧱 Suelo como bloques simples
-  for (let i = segmentStart; i < segmentEnd; i += 40) {
-    blocks.push({
-      x: i,
-      y: groundY - 40,
-      width: 40,
-      height: 40
-    });
-  }
-
-  // 🧗 Obstáculos superiores (máximo 2 por segmento)
-  let upperObstacles = 0;
-  const upperPlatforms = [];
-  for (let i = segmentStart + 100; i < segmentEnd; i += 200) {
-    if (Math.random() < 0.5 && upperObstacles < 2) {
-      const platform = {
-        x: i,
-        y: groundY - 200,
-        width: 100,
-        height: 40
-      };
-      blocks.push(platform);
-      upperPlatforms.push(platform);
-      upperObstacles++;
-    }
-  }
-
-  // 👾 Enemigos sobre el suelo
-  for (let i = segmentStart + 150; i < segmentEnd; i += 400) {
-    enemies.push({
-      x: i,
-      y: groundY - 248,
-      width: 248,
-      height: 248,
-      hitboxOffsetX: 80,
-      hitboxOffsetY: 60,
-      hitboxWidth: 88,
-      hitboxHeight: 128,
-      hp: 1,
-      dx: 2,
-      active: true,
-      patrolMin: i - 100,
-      patrolMax: i + 100
-    });
-  }
-
-  // 👾 Enemigos sobre obstáculos superiores
-  upperPlatforms.forEach(platform => {
-    enemies.push({
-      x: platform.x + 10,
-      y: platform.y - 248,
-      width: 248,
-      height: 248,
-      hitboxOffsetX: 80,
-      hitboxOffsetY: 60,
-      hitboxWidth: 88,
-      hitboxHeight: 128,
-      hp: 1,
-      dx: 2,
-      active: true,
-      patrolMin: platform.x,
-      patrolMax: platform.x + platform.width - 248
-    });
-  });
-
-  // ❓ Checkpoint con pregunta
-  if (segmentEnd >= nextCheckpoint && questionBank.length > usedQuestions.size) {
-    const availableQuestions = questionBank.filter(q => !usedQuestions.has(q.question));
-    if (availableQuestions.length > 0) {
-      const q = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
-      usedQuestions.add(q.question);
-
-      checkpoints.push({
-        x: segmentEnd,
-        y: groundY - 60,
-        width: 60,
-        height: 60,
-        question: q.question,
-        answer: q.answer,
-        triggered: false
-      });
-
-      nextCheckpoint += 2000;
-    }
-  }
-
-  lastSpawnX = segmentEnd;
-}
 // 🧍 Actualización del jugador
 function updatePlayer() {
   if (keys['ArrowRight']) {
@@ -220,14 +116,14 @@ function updatePlayer() {
   player.dy += 1.2; // Gravedad
   player.y += player.dy;
 
-  // Colisión con el suelo
+  // 🧱 Colisión con el suelo infinito
   if (player.y + player.height >= groundY) {
     player.y = groundY - player.height;
     player.dy = 0;
     player.grounded = true;
   }
 
-  // Colisiones con bloques
+  // 🧱 Colisiones con bloques
   blocks.forEach(block => {
     const hitbox = {
       x: player.x + player.hitboxOffsetX,
@@ -262,13 +158,13 @@ function updatePlayer() {
     }
   });
 
-  // Generar nuevo segmento si se acerca al borde
+  // 🌍 Generar nuevo segmento si se acerca al borde
   if (player.x + canvas.width > lastSpawnX - 400) {
     generateWorldSegment();
   }
 }
 
-// 🔁 Actualización de enemigos
+// 👾 Actualización de enemigos
 function updateEnemies() {
   enemies.forEach(en => {
     if (!en.active) return;
@@ -276,6 +172,7 @@ function updateEnemies() {
     const speed = 2 + Math.floor(player.x / 1000) * 0.5;
     en.x += en.dx >= 0 ? speed : -speed;
 
+    // Patrullaje dentro de límites
     if (en.patrolMin !== undefined && en.patrolMax !== undefined) {
       if (en.x < en.patrolMin || en.x > en.patrolMax) {
         en.dx *= -1;
@@ -283,6 +180,7 @@ function updateEnemies() {
       }
     }
 
+    // Colisión con el jugador
     const playerHitbox = {
       x: player.x + player.hitboxOffsetX,
       y: player.y + player.hitboxOffsetY,
@@ -310,6 +208,7 @@ function updateEnemies() {
     }
   });
 
+  // Eliminar enemigos derrotados
   enemies = enemies.filter(en => en.hp > 0);
 }
 
@@ -332,19 +231,21 @@ function checkCheckpoints() {
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
+
+  // 📷 Cámara que sigue al jugador
   ctx.translate(-player.x + canvas.width / 2, 0);
 
-  // Jugador
+  // 🧍 Jugador
   const img = player.direction === 'right' ? playerRightImg : playerLeftImg;
   if (img.complete && img.naturalWidth !== 0) {
     ctx.drawImage(img, player.x, player.y, player.width, player.height);
   }
 
-  // Bloques (suelo, obstáculos, muro)
+  // 🧱 Bloques (suelo, obstáculos, muro)
   ctx.fillStyle = 'gray';
   blocks.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
 
-  // Enemigos
+  // 👾 Enemigos
   enemies.forEach(e => {
     const eImg = e.dx >= 0 ? enemyRightImg : enemyLeftImg;
     if (eImg.complete && eImg.naturalWidth !== 0) {
@@ -352,11 +253,11 @@ function draw() {
     }
   });
 
-  // Checkpoints
+  // ❓ Checkpoints
   ctx.fillStyle = 'purple';
   checkpoints.forEach(cp => ctx.fillRect(cp.x, cp.y, cp.width, cp.height));
 
-  // Modo debug
+  // 🐞 Modo debug
   if (debugMode) {
     ctx.strokeStyle = 'red';
     ctx.strokeRect(
