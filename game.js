@@ -270,7 +270,7 @@ function updateEnemies() {
       height: en.hitboxHeight
     };
 
-        if (detectCollision(playerHitbox, enemyHitbox) && !dying) {
+            if (detectCollision(playerHitbox, enemyHitbox) && !dying) {
       lives--;
       livesDisplay.textContent = lives;
       dying = true;
@@ -282,6 +282,40 @@ function updateEnemies() {
   });
 
   enemies = enemies.filter(en => en.hp > 0);
+}
+
+function updateCoins() {
+  coins = coins.filter(coin => {
+    if (detectCollision(player, coin)) {
+      score += coin.value || 10;
+      scoreDisplay.textContent = score;
+      return false;
+    }
+    return true;
+  });
+}
+
+function checkCheckpoints() {
+  checkpoints.forEach(cp => {
+    if (!cp.triggered && detectCollision(player, cp)) {
+      cp.triggered = true;
+      const respuesta = prompt(cp.question);
+      if (respuesta && respuesta.toLowerCase() === cp.answer.toLowerCase()) {
+        alert("¡Progreso guardado!");
+        score += cp.value || 30;
+        scoreDisplay.textContent = score;
+        lastCheckpoint = { x: cp.x, y: cp.y - player.height };
+        localStorage.setItem('lastCheckpoint', JSON.stringify(lastCheckpoint));
+        checkpointsResueltos++;
+        if (checkpointsResueltos % 5 === 0) {
+          lives++;
+          livesDisplay.textContent = lives;
+        }
+      } else {
+        alert("Respuesta incorrecta.");
+      }
+    }
+  });
 }
 
 function handleDeathAnimation() {
@@ -348,7 +382,7 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-// 🏁 Mostrar pantalla de Game Over
+// 🏁 Game Over y clasificación
 function showGameOver() {
   document.getElementById('final-score').textContent = score;
   document.getElementById('game-over-screen').style.display = 'flex';
@@ -356,7 +390,6 @@ function showGameOver() {
   renderLeaderboard();
 }
 
-// 📝 Guardar puntuación local y actualizar tabla
 function submitScore() {
   const name = document.getElementById('player-name').value.trim() || 'Jugador';
   const leaderboard = JSON.parse(localStorage.getItem('leaderboard') || '[]');
@@ -367,9 +400,9 @@ function submitScore() {
 
   localStorage.setItem('leaderboard', JSON.stringify(top10));
   renderLeaderboard();
+  uploadLeaderboardToGitHub(); // ← Subida directa a GitHub
 }
 
-// 🖼️ Mostrar tabla de clasificación
 function renderLeaderboard() {
   const list = document.getElementById('leaderboard');
   list.innerHTML = '';
@@ -381,7 +414,6 @@ function renderLeaderboard() {
   });
 }
 
-// 🔁 Reiniciar juego
 function restartGame() {
   localStorage.removeItem('lastCheckpoint');
   location.reload();
@@ -389,8 +421,8 @@ function restartGame() {
 
 // 🔄 Leer clasificación desde GitHub
 async function fetchLeaderboardFromGitHub() {
-  const owner = 'TU_USUARIO_DE_GITHUB'; // ← Reemplaza con tu usuario
-  const repo = 'TU_REPOSITORIO';        // ← Reemplaza con el nombre del repo
+  const owner = 'qdqm46';
+  const repo = 'Game';
   const filePath = 'leaderboard.json';
 
   try {
@@ -403,92 +435,18 @@ async function fetchLeaderboardFromGitHub() {
     console.error('Error al cargar la clasificación desde GitHub:', error);
   }
 }
-function updateCoins() {
-  coins = coins.filter(coin => {
-    if (detectCollision(player, coin)) {
-      score += coin.value || 10;
-      scoreDisplay.textContent = score;
-      return false;
-    }
-    return true;
-  });
-}
 
-function checkCheckpoints() {
-  checkpoints.forEach(cp => {
-    if (!cp.triggered && detectCollision(player, cp)) {
-      cp.triggered = true;
-      const respuesta = prompt(cp.question);
-      if (respuesta && respuesta.toLowerCase() === cp.answer.toLowerCase()) {
-        alert("¡Progreso guardado!");
-        score += cp.value || 30;
-        scoreDisplay.textContent = score;
-        lastCheckpoint = { x: cp.x, y: cp.y - player.height };
-        localStorage.setItem('lastCheckpoint', JSON.stringify(lastCheckpoint));
-        checkpointsResueltos++;
-        if (checkpointsResueltos % 5 === 0) {
-          lives++;
-          livesDisplay.textContent = lives;
-        }
-      } else {
-        alert("Respuesta incorrecta.");
-      }
-    }
-  });
-}
-
-// 🏁 Mostrar pantalla de Game Over
-function showGameOver() {
-  document.getElementById('final-score').textContent = score;
-  document.getElementById('game-over-screen').style.display = 'flex';
-  paused = true;
-  renderLeaderboard();
-}
-
-// 📝 Guardar puntuación local y actualizar tabla
-function submitScore() {
-  const name = document.getElementById('player-name').value.trim() || 'Jugador';
-  const leaderboard = JSON.parse(localStorage.getItem('leaderboard') || '[]');
-
-  leaderboard.push({ name, score });
-  leaderboard.sort((a, b) => b.score - a.score);
-  const top10 = leaderboard.slice(0, 10);
-
-  localStorage.setItem('leaderboard', JSON.stringify(top10));
-  renderLeaderboard();
-}
-
-// 🖼️ Mostrar tabla de clasificación
-function renderLeaderboard() {
-  const list = document.getElementById('leaderboard');
-  list.innerHTML = '';
-  const leaderboard = JSON.parse(localStorage.getItem('leaderboard') || '[]');
-  leaderboard.forEach(entry => {
-    const li = document.createElement('li');
-    li.textContent = `${entry.name} — ${entry.score} pts`;
-    list.appendChild(li);
-  });
-}
-
-// 🔁 Reiniciar juego
-function restartGame() {
-  localStorage.removeItem('lastCheckpoint');
-  location.reload();
-}
-
-// 🔄 Leer clasificación desde GitHub
-async function fetchLeaderboardFromGitHub() {
-  const token = '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';
-const owner = 'qdqm46';
-const repo = 'Game';
-const filePath = 'leaderboard.json';
+// 🚀 Subir clasificación a GitHub (versión de prueba)
+const token = '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';
 
 async function uploadLeaderboardToGitHub() {
   const leaderboard = JSON.parse(localStorage.getItem('leaderboard') || '[]');
   const content = JSON.stringify(leaderboard, null, 2);
+  const owner = 'qdqm46';
+  const repo = 'Game';
+  const filePath = 'leaderboard.json';
 
   try {
-    // Obtener SHA actual del archivo
     const getRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
       headers: {
         Authorization: `Bearer ${token}`,
@@ -499,7 +457,6 @@ async function uploadLeaderboardToGitHub() {
     const fileData = await getRes.json();
     const sha = fileData.sha;
 
-    // Subir nueva versión
     const updateRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${filePath}`, {
       method: 'PUT',
       headers: {
