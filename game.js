@@ -287,7 +287,7 @@ function draw() {
   ctx.fillStyle = 'gold';
   coins.forEach(c => ctx.fillRect(c.x, c.y, c.width, c.height));
 
-    ctx.fillStyle = 'purple';
+  ctx.fillStyle = 'purple';
   checkpoints.forEach(cp => ctx.fillRect(cp.x, cp.y, cp.width, cp.height));
 
   ctx.fillStyle = 'red';
