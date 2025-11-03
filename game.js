@@ -10,9 +10,12 @@ let paused = false;
 let debugMode = false;
 let score = 0;
 let lives = 3;
+let dying = false;
+let deathTimer = 0;
 let lastSpawnX = 0;
-let nextCheckpoint = 100000; // Checkpoints cada 100,000 píxeles
-let lastCheckpoint = { x: 50, y: 0 }; // Punto de reaparición
+let nextCheckpoint = 100000;
+let checkpointsResueltos = 0;
+let lastCheckpoint = { x: 50, y: 0 };
 
 // 📏 Altura dinámica del suelo
 let groundY;
@@ -81,6 +84,7 @@ if (savedCheckpoint) {
 // ▶️ Botón de inicio
 document.getElementById('start-button').addEventListener('click', () => {
   document.getElementById('start-menu').style.display = 'none';
+  fetchLeaderboardFromGitHub();
   generateWorldSegment();
   gameLoop();
 });
@@ -91,7 +95,7 @@ document.addEventListener('keyup', e => keys[e.code] = false);
 
 // 🕹️ Acciones del jugador
 document.addEventListener('keydown', e => {
-  if (e.code === 'Space' && player.grounded) {
+  if (e.code === 'Space' && player.grounded && !dying) {
     player.dy = -28;
     player.grounded = false;
   }
@@ -113,101 +117,49 @@ function detectCollision(a, b) {
          a.y < b.y + b.height &&
          a.y + a.height > b.y;
 }
-// 🌍 Generación del mundo con obstáculos, enemigos, monedas y checkpoints
 function generateWorldSegment() {
   const segmentStart = lastSpawnX;
   const segmentEnd = segmentStart + 800;
 
-  // 🧱 Muro insuperable al inicio
-  if (segmentStart === 0) {
-    blocks.push({
-      x: -100,
-      y: groundY - 1000,
-      width: 100,
-      height: 2000
-    });
-  }
-
-  // 🧱 Suelo como bloques
+  // Suelo
   for (let i = segmentStart; i < segmentEnd; i += 40) {
-    blocks.push({
-      x: i,
-      y: groundY - 40,
-      width: 40,
-      height: 40
-    });
+    blocks.push({ x: i, y: groundY - 40, width: 40, height: 40 });
   }
 
-  // 🧗 Obstáculos superiores escalonados
-  const upperPlatforms = [];
-  for (let i = segmentStart + 200; i < segmentEnd; i += 200) {
-    for (let level = 1; level <= 3; level++) {
-      const y = groundY - (level * 160);
-      const platform = {
-        x: i + level * 40,
-        y: y,
-        width: 100,
-        height: 40
-      };
-      blocks.push(platform);
-      upperPlatforms.push(platform);
+  // Obstáculos altos en el cielo
+  for (let i = segmentStart + 400; i < segmentEnd; i += 800) {
+    if (Math.random() < 0.3) {
+      const skyY = groundY - 600 - Math.floor(Math.random() * 200);
+      blocks.push({ x: i, y: skyY, width: 100, height: 40 });
+      coins.push({ x: i + 40, y: skyY - 40, width: 20, height: 20, value: 10 });
+    }
+  }
 
-      // 👾 Enemigo sobre algunos obstáculos
-      if (Math.random() < 0.3) {
-        enemies.push({
-          x: platform.x + 10,
-          y: platform.y - 248,
-          width: 248,
-          height: 248,
-          hitboxOffsetX: 80,
-          hitboxOffsetY: 60,
-          hitboxWidth: 88,
-          hitboxHeight: 128,
-          hp: 1,
-          dx: 2,
-          active: true,
-          patrolMin: platform.x,
-          patrolMax: platform.x + platform.width - 248
-        });
-      }
-
-      // 💰 Moneda sobre el obstáculo
-      coins.push({
-        x: platform.x + 40,
-        y: platform.y - 40,
-        width: 20,
-        height: 20,
-        value: 10
+  // Enemigos en el suelo (muy separados)
+  for (let i = segmentStart + 600; i < segmentEnd; i += 1200) {
+    if (Math.random() < 0.4) {
+      enemies.push({
+        x: i,
+        y: groundY - 248,
+        width: 248,
+        height: 248,
+        hitboxOffsetX: 80,
+        hitboxOffsetY: 60,
+        hitboxWidth: 88,
+        hitboxHeight: 128,
+        hp: 1,
+        dx: 1,
+        active: true
       });
     }
   }
 
-  // 👾 Enemigos sobre el suelo
-  for (let i = segmentStart + 300; i < segmentEnd; i += 600) {
-    enemies.push({
-      x: i,
-      y: groundY - 248,
-      width: 248,
-      height: 248,
-      hitboxOffsetX: 80,
-      hitboxOffsetY: 60,
-      hitboxWidth: 88,
-      hitboxHeight: 128,
-      hp: 1,
-      dx: 2,
-      active: true,
-      patrolMin: i - 100,
-      patrolMax: i + 100
-    });
-  }
-
-  // ❓ Checkpoints cada 100,000 píxeles
+  // Checkpoints cada 100,000 píxeles
   if (segmentEnd >= nextCheckpoint && questionBank.length > usedQuestions.size) {
-    const availableQuestions = questionBank.filter(q => !usedQuestions.has(q.question));
-    if (availableQuestions.length > 0) {
-      const q = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
+    const available = questionBank.filter(q => !usedQuestions.has(q.question));
+    if (available.length > 0) {
+      const q = available[Math.floor(Math.random() * available.length)];
       usedQuestions.add(q.question);
-
       checkpoints.push({
         x: segmentEnd,
         y: groundY - 60,
@@ -218,7 +170,6 @@ function generateWorldSegment() {
         triggered: false,
         value: 30
       });
-
       nextCheckpoint += 100000;
     }
   }
@@ -226,49 +177,12 @@ function generateWorldSegment() {
   lastSpawnX = segmentEnd;
 }
 
-// 💰 Monedas
-function updateCoins() {
-  coins = coins.filter(coin => {
-    if (detectCollision(player, coin)) {
-      score += coin.value || 10;
-      scoreDisplay.textContent = score;
-      return false;
-    }
-    return true;
-  });
-}
-
-// ❓ Checkpoints con guardado de progreso
-function checkCheckpoints() {
-  checkpoints.forEach(cp => {
-    if (!cp.triggered && detectCollision(player, cp)) {
-      cp.triggered = true;
-      const respuesta = prompt(cp.question);
-      if (respuesta && respuesta.toLowerCase() === cp.answer.toLowerCase()) {
-        alert("¡Progreso guardado!");
-        score += cp.value || 30;
-        scoreDisplay.textContent = score;
-
-        // 🧠 Guardar progreso
-        lastCheckpoint = {
-          x: cp.x,
-          y: cp.y - player.height
-        };
-        localStorage.setItem('lastCheckpoint', JSON.stringify(lastCheckpoint));
-      } else {
-        alert("Respuesta incorrecta.");
-      }
-    }
-  });
-}
-
-// 🧍 Actualización del jugador
 function updatePlayer() {
   if (keys['ArrowRight']) {
     player.x += 4;
     player.direction = 'right';
   }
-  if (keys['ArrowLeft'] && player.x > 0) {
+  if (keys['ArrowLeft']) {
     player.x -= 4;
     player.direction = 'left';
   }
@@ -319,18 +233,28 @@ function updatePlayer() {
   }
 }
 
-// 👾 Enemigos
 function updateEnemies() {
   enemies.forEach(en => {
-    if (!en.active) return;
+    if (!en.active || dying) return;
 
-    const speed = 2 + Math.floor(player.x / 1000) * 0.5;
-    en.x += en.dx >= 0 ? speed : -speed;
+    const distance = Math.abs(en.x - player.x);
+    const speed = 2;
 
-    if (en.x < en.patrolMin || en.x > en.patrolMax) {
-      en.dx *= -1;
-      en.x = Math.max(en.patrolMin, Math.min(en.x, en.patrolMax));
+    if (distance < 300) {
+      en.dx = player.x > en.x ? 1 : -1;
     }
+
+    const nextX = en.x + (en.dx > 0 ? en.width : -5);
+    const nextY = en.y + en.height - 5;
+    const blocked = blocks.some(block =>
+      nextX < block.x + block.width &&
+      nextX + 5 > block.x &&
+      nextY < block.y + block.height &&
+      nextY + 5 > block.y
+    );
+
+    if (blocked) en.dx *= -1;
+    en.x += en.dx * speed;
 
     const playerHitbox = {
       x: player.x + player.hitboxOffsetX,
@@ -346,98 +270,112 @@ function updateEnemies() {
       height: en.hitboxHeight
     };
 
-    if (detectCollision(playerHitbox, enemyHitbox)) {
+    if (detectCollision(playerHitbox, enemyHitbox) && !dying) {
       lives--;
       livesDisplay.textContent = lives;
-      if (lives <= 0) {
-        alert('¡Has perdido!');
-        localStorage.removeItem('lastCheckpoint');
-        location.reload();
-      } else {
-        player.x = lastCheckpoint.x;
-        player.y = lastCheckpoint.y;
-        player.dy = 0;
-      }
+      dying = true;
+      deathTimer = 0;
+      const penalty = Math.floor(player.x / 1000) * 100;
+      score = Math.max(0, score - penalty);
+      scoreDisplay.textContent = score;
     }
   });
 
   enemies = enemies.filter(en => en.hp > 0);
 }
 
-// 🖼️ Dibujo del juego (continuación y cierre)
+function updateCoins() {
+  coins = coins.filter(coin => {
+    if (detectCollision(player, coin)) {
+      score += coin.value || 10;
+      scoreDisplay.textContent = score;
+      return false;
+    }
+    return true;
+  });
+}
+
+function checkCheckpoints() {
+  checkpoints.forEach(cp => {
+    if (!cp.triggered && detectCollision(player, cp)) {
+      cp.triggered = true;
+      const respuesta = prompt(cp.question);
+      if (respuesta && respuesta.toLowerCase() === cp.answer.toLowerCase()) {
+        alert("¡Progreso guardado!");
+        score += cp.value || 30;
+        scoreDisplay.textContent = score;
+        lastCheckpoint = { x: cp.x, y: cp.y - player.height };
+        localStorage.setItem('lastCheckpoint', JSON.stringify(lastCheckpoint));
+        checkpointsResueltos++;
+        if (checkpointsResueltos % 5 === 0) {
+          lives++;
+          livesDisplay.textContent = lives;
+        }
+      } else {
+        alert("Respuesta incorrecta.");
+      }
+    }
+  });
+}
+
+function handleDeathAnimation() {
+  deathTimer++;
+  ctx.save();
+  ctx.translate(-player.x + canvas.width / 2, 0);
+  ctx.globalAlpha = Math.max(0, 1 - deathTimer / 60);
+  const img = player.direction === 'right' ? playerRightImg : playerLeftImg;
+  ctx.drawImage(img, player.x, player.y, player.width, player.height);
+  ctx.restore();
+
+  if (deathTimer >= 60) {
+    dying = false;
+    if (lives <= 0) {
+      showGameOver();
+    } else {
+      player.x = lastCheckpoint.x;
+      player.y = lastCheckpoint.y;
+      player.dy = 0;
+    }
+  }
+}
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
   ctx.translate(-player.x + canvas.width / 2, 0);
 
-  // Jugador
   const img = player.direction === 'right' ? playerRightImg : playerLeftImg;
-  if (img.complete && img.naturalWidth !== 0) {
-    ctx.drawImage(img, player.x, player.y, player.width, player.height);
-  }
+  if (!dying) ctx.drawImage(img, player.x, player.y, player.width, player.height);
 
-  // Bloques
   ctx.fillStyle = 'gray';
   blocks.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
 
-  // Monedas
   ctx.fillStyle = 'gold';
   coins.forEach(c => ctx.fillRect(c.x, c.y, c.width, c.height));
 
-  // Enemigos
   enemies.forEach(e => {
     const eImg = e.dx >= 0 ? enemyRightImg : enemyLeftImg;
-    if (eImg.complete && eImg.naturalWidth !== 0) {
-      ctx.drawImage(eImg, e.x, e.y, e.width, e.height);
-    }
+    ctx.drawImage(eImg, e.x, e.y, e.width, e.height);
   });
 
-  // Checkpoints
   ctx.fillStyle = 'purple';
   checkpoints.forEach(cp => ctx.fillRect(cp.x, cp.y, cp.width, cp.height));
-
-  // Modo debug
-  if (debugMode) {
-    ctx.strokeStyle = 'red';
-    ctx.strokeRect(
-      player.x + player.hitboxOffsetX,
-      player.y + player.hitboxOffsetY,
-      player.hitboxWidth,
-      player.hitboxHeight
-    );
-
-    enemies.forEach(e => {
-      ctx.strokeStyle = 'green';
-      ctx.strokeRect(
-        e.x + e.hitboxOffsetX,
-        e.y + e.hitboxOffsetY,
-        e.hitboxWidth,
-        e.hitboxHeight
-      );
-    });
-
-    checkpoints.forEach(cp => {
-      ctx.strokeStyle = 'purple';
-      ctx.strokeRect(cp.x, cp.y, cp.width, cp.height);
-    });
-
-    coins.forEach(c => {
-      ctx.strokeStyle = 'orange';
-      ctx.strokeRect(c.x, c.y, c.width, c.height);
-    });
-  }
 
   ctx.restore();
 }
 
-// 🔁 Bucle principal del juego
 function gameLoop() {
   if (!paused) {
-    updatePlayer();
-    updateEnemies();
-    updateCoins();
-    checkCheckpoints();
-    draw();
+    if (dying) {
+      draw();
+      handleDeathAnimation();
+    } else {
+      updatePlayer();
+      updateEnemies();
+      updateCoins();
+      checkCheckpoints();
+      draw();
+    }
   }
   requestAnimationFrame(gameLoop);
 }
