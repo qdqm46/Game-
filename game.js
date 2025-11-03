@@ -5,6 +5,8 @@ const scoreDisplay = document.getElementById('score');
 const livesDisplay = document.getElementById('lives');
 
 // 🧠 Variables globales
+let walkSpeed = 4;
+let runSpeed = 7;
 let keys = {};
 let paused = false;
 let debugMode = false;
@@ -208,14 +210,18 @@ function updatePlayer() {
   if (player.x < 40) {
   player.x = 40;
   }
-  if (keys['ArrowRight']) {
-    player.x += 4;
-    player.direction = 'right';
-  }
-  if (keys['ArrowLeft']) {
-    player.x -= 4;
-    player.direction = 'left';
-  }
+  const isRunning = keys['ShiftLeft'] || keys['ShiftRight'];
+const speed = isRunning ? runSpeed : walkSpeed;
+
+if (keys['ArrowRight']) {
+  player.x += speed;
+  player.direction = 'right';
+}
+if (keys['ArrowLeft']) {
+  player.x -= speed;
+  player.direction = 'left';
+}
+
 
   player.dy += 1.2;
   player.y += player.dy;
@@ -534,6 +540,7 @@ async function uploadLeaderboardToGitHub() {
     console.error('Error al conectar con GitHub:', error);
   }
 }
+
 
 
 
