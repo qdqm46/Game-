@@ -38,6 +38,10 @@ const enemyRightImg = new Image();
 enemyRightImg.src = 'enemy-right.png';
 const enemyLeftImg = new Image();
 enemyLeftImg.src = 'enemy-left.png';
+const grassImg = new Image();
+grassImg.src = 'grass.png';
+const backgroundImg = new Image();
+backgroundImg.src = 'background.png';
 
 let blocks = [], enemies = [], coins = [], checkpoints = [];
 
@@ -46,10 +50,6 @@ document.getElementById('start-button').addEventListener('click', () => {
 
   if (canvas.requestFullscreen) {
     canvas.requestFullscreen();
-  } else if (canvas.webkitRequestFullscreen) {
-    canvas.webkitRequestFullscreen();
-  } else if (canvas.msRequestFullscreen) {
-    canvas.msRequestFullscreen();
   }
 
   generateWorldSegment();
@@ -88,6 +88,17 @@ function detectCollision(a, b) {
 function generateWorldSegment() {
   const segmentStart = lastSpawnX + 400;
   const segmentEnd = segmentStart + 800;
+
+  // Suelo de césped
+  for (let x = segmentStart; x < segmentEnd; x += 40) {
+    blocks.push({
+      x: x,
+      y: groundY,
+      width: 40,
+      height: 40,
+      type: 'grass'
+    });
+  }
 
   for (let i = segmentStart + 100; i < segmentEnd; i += 400) {
     blocks.push({
@@ -150,6 +161,7 @@ function generateWorldSegment() {
 
   lastSpawnX = segmentEnd;
 }
+
 function updatePlayer() {
   if (keys['ArrowRight']) {
     player.x += 4;
@@ -163,7 +175,6 @@ function updatePlayer() {
   player.dy += 1.2;
   player.y += player.dy;
 
-  // Colisión con el suelo
   if (player.y + player.height >= groundY) {
     player.y = groundY - player.height;
     player.dy = 0;
@@ -178,7 +189,6 @@ function updatePlayer() {
       height: player.hitboxHeight
     };
 
-    // Colisión desde abajo (saltando)
     if (
       player.dy < 0 &&
       hitbox.y <= block.y + block.height &&
@@ -190,7 +200,6 @@ function updatePlayer() {
       player.y = block.y + block.height - player.hitboxOffsetY;
     }
 
-    // Colisión desde arriba (cayendo)
     if (
       player.dy >= 0 &&
       hitbox.y + hitbox.height >= block.y &&
@@ -296,25 +305,40 @@ function draw() {
   ctx.save();
   ctx.translate(-player.x + canvas.width / 2, 0);
 
+  // Fondo estático
+  ctx.drawImage(backgroundImg, player.x - canvas.width / 2, 0, canvas.width, canvas.height);
+
+  // Jugador
   const img = player.direction === 'right' ? playerRightImg : playerLeftImg;
   ctx.drawImage(img, player.x, player.y, player.width, player.height);
 
-  ctx.fillStyle = 'gray';
-  blocks.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
+  // Bloques
+  blocks.forEach(b => {
+    if (b.type === 'grass') {
+      ctx.drawImage(grassImg, b.x, b.y, b.width, b.height);
+    } else {
+      ctx.fillStyle = 'gray';
+      ctx.fillRect(b.x, b.y, b.width, b.height);
+    }
+  });
 
+  // Monedas
   ctx.fillStyle = 'gold';
   coins.forEach(c => ctx.fillRect(c.x, c.y, c.width, c.height));
 
+  // Enemigos
   enemies.forEach(e => {
     const img = e.dx >= 0 ? enemyRightImg : enemyLeftImg;
     ctx.drawImage(img, e.x, e.y, e.width, e.height);
   });
 
+  // Checkpoints
   ctx.fillStyle = 'purple';
   checkpoints.forEach(cp => {
     ctx.fillRect(cp.x, cp.y, cp.width, cp.height);
   });
 
+  // Debug
   if (debugMode) {
     ctx.strokeStyle = 'red';
     ctx.strokeRect(
