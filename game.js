@@ -25,7 +25,7 @@ resizeCanvas(); // Inicializa el canvas al cargar
 
 // 🧍 Configuración del jugador
 const player = {
-  x: 100,
+  x: 50, // Comienza cerca del borde izquierdo
   y: groundY - 248,
   width: 248,
   height: 248,
@@ -101,10 +101,21 @@ function detectCollision(a, b) {
          a.y < b.y + b.height &&
          a.y + a.height > b.y;
 }
+
 // 🧱 Generación del mundo: suelo, obstáculos y enemigos
 function generateWorldSegment() {
-  const segmentStart = lastSpawnX + 400;
+  const segmentStart = lastSpawnX;
   const segmentEnd = segmentStart + 800;
+
+  // 🧱 Muro insuperable en el extremo izquierdo (solo una vez)
+  if (segmentStart === 0) {
+    blocks.push({
+      x: -100,
+      y: groundY - 1000,
+      width: 100,
+      height: 2000
+    });
+  }
 
   // 🧱 Suelo como bloques simples
   for (let i = segmentStart; i < segmentEnd; i += 40) {
@@ -194,21 +205,22 @@ function generateWorldSegment() {
 
   lastSpawnX = segmentEnd;
 }
-
 // 🧍 Actualización del jugador
 function updatePlayer() {
   if (keys['ArrowRight']) {
     player.x += 4;
     player.direction = 'right';
   }
-  if (keys['ArrowLeft']) {
+  // 🚫 Limita el movimiento hacia la izquierda para no atravesar el muro
+  if (keys['ArrowLeft'] && player.x > 0) {
     player.x -= 4;
     player.direction = 'left';
   }
 
-  player.dy += 1.2;
+  player.dy += 1.2; // Gravedad
   player.y += player.dy;
 
+  // Colisión con el suelo
   if (player.y + player.height >= groundY) {
     player.y = groundY - player.height;
     player.dy = 0;
@@ -292,7 +304,7 @@ function updateEnemies() {
         alert('¡Has perdido!');
         location.reload();
       } else {
-        player.x = 100;
+        player.x = 50;
         player.y = groundY - player.height;
       }
     }
@@ -328,7 +340,7 @@ function draw() {
     ctx.drawImage(img, player.x, player.y, player.width, player.height);
   }
 
-  // Bloques
+  // Bloques (suelo, obstáculos, muro)
   ctx.fillStyle = 'gray';
   blocks.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
 
