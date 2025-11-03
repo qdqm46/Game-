@@ -35,8 +35,6 @@ let blocks = [], enemies = [], coins = [], checkpoints = [];
 // 🕹️ 5. Eventos del Juego
 document.getElementById('start-button').addEventListener('click', () => {
   document.getElementById('start-menu').style.display = 'none';
-  else if (canvas.webkitRequestFullscreen) canvas.webkitRequestFullscreen();
-  else if (canvas.msRequestFullscreen) canvas.msRequestFullscreen();
   generateWorldSegment();
   gameLoop();
 });
@@ -305,4 +303,5 @@ function gameLoop() {
   }
   requestAnimationFrame(gameLoop);
 }
+
 
