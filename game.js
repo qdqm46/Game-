@@ -11,7 +11,14 @@ const winSound = document.getElementById('win-sound');
 let keys = {};
 let paused = false;
 let debugMode = false;
-let groundY = canvas.height - 50;
+function resizeCanvas() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+  groundY = canvas.height - 50;
+}
+window.addEventListener('resize', resizeCanvas);
+resizeCanvas(); // Llamada inicial
+
 let score = 0;
 let lives = 3;
 let lastSpawnX = 0;
@@ -303,6 +310,7 @@ function gameLoop() {
   }
   requestAnimationFrame(gameLoop);
 }
+
 
 
 
