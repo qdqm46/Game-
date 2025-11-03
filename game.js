@@ -1,45 +1,63 @@
-// 🎮 1. Inicialización del Canvas y Elementos del DOM
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const scoreDisplay = document.getElementById('score');
 const livesDisplay = document.getElementById('lives');
-const attackSound = document.getElementById('attack-sound');
-const coinSound = document.getElementById('coin-sound');
-const winSound = document.getElementById('win-sound');
 
-// 🧠 2. Variables Globales
 let keys = {};
 let paused = false;
 let debugMode = false;
+let score = 0;
+let lives = 3;
+let lastSpawnX = 0;
+let nextCheckpoint = 1000;
+
+let groundY;
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
   groundY = canvas.height - 50;
 }
 window.addEventListener('resize', resizeCanvas);
-resizeCanvas(); // Llamada inicial
+resizeCanvas();
 
-let score = 0;
-let lives = 3;
-let lastSpawnX = 0;
-let nextCheckpoint = 1000;
-
-// 🧍 3. Jugador y Recursos
 const player = {
-  x: 100, y: groundY - 248, width: 248, height: 248,
-  dy: 0, grounded: true, attack: false, direction: 'right',
-  hitboxOffsetX: 80, hitboxOffsetY: 60, hitboxWidth: 88, hitboxHeight: 128
+  x: 100,
+  y: groundY - 248,
+  width: 248,
+  height: 248,
+  dy: 0,
+  grounded: true,
+  attack: false,
+  direction: 'right',
+  hitboxOffsetX: 80,
+  hitboxOffsetY: 60,
+  hitboxWidth: 88,
+  hitboxHeight: 128
 };
 
-const playerRightImg = new Image(); playerRightImg.src = 'assets/player-right.png';
-const playerLeftImg = new Image(); playerLeftImg.src = 'assets/player-left.png';
-const enemyRightImg = new Image(); enemyRightImg.src = 'assets/enemy-right.png';
-const enemyLeftImg = new Image(); enemyLeftImg.src = 'assets/enemy-left.png';
+const playerRightImg = new Image();
+playerRightImg.src = 'assets/player-right.png';
+const playerLeftImg = new Image();
+playerLeftImg.src = 'assets/player-left.png';
+const enemyRightImg = new Image();
+enemyRightImg.src = 'assets/enemy-right.png';
+const enemyLeftImg = new Image();
+enemyLeftImg.src = 'assets/enemy-left.png';
 
-// 🧱 4. Entidades del Juego
-let blocks = [], enemies = [], coins = [], checkpoints = [];
+let blocks = [];
+let enemies = [];
+let coins = [];
+let checkpoints = [];
 
-// 🕹️ 5. Eventos del Juego
+let questionBank = [];
+let usedQuestions = new Set();
+
+fetch('questions.json')
+  .then(res => res.json())
+  .then(data => {
+    questionBank = data;
+  });
+
 document.getElementById('start-button').addEventListener('click', () => {
   document.getElementById('start-menu').style.display = 'none';
   generateWorldSegment();
@@ -56,7 +74,6 @@ document.addEventListener('keydown', e => {
   }
   if (e.code === 'KeyF') {
     player.attack = true;
-    attackSound.play();
     setTimeout(() => player.attack = false, 300);
   }
   if (e.code === 'KeyP') paused = !paused;
@@ -66,7 +83,6 @@ document.addEventListener('keydown', e => {
   }
 });
 
-// 🧩 6. Funciones de Utilidad
 function detectCollision(a, b) {
   return a.x < b.x + b.width &&
          a.x + a.width > b.x &&
@@ -74,7 +90,6 @@ function detectCollision(a, b) {
          a.y + a.height > b.y;
 }
 
-// 🌍 7. Generación del Mundo
 function generateWorldSegment() {
   const segmentStart = lastSpawnX + 400;
   const segmentEnd = segmentStart + 800;
@@ -84,35 +99,68 @@ function generateWorldSegment() {
 
     const platformX = i + 200;
     const platformWidth = 200;
-    blocks.push({ x: platformX, y: 160, width: platformWidth, height: 40 });
+    const platformY = 160 + Math.floor(Math.random() * 100);
+
+    blocks.push({ x: platformX, y: platformY, width: platformWidth, height: 40 });
 
     enemies.push({
-      x: platformX + 20, y: 160 - 248, width: 248, height: 248,
-      hitboxOffsetX: 80, hitboxOffsetY: 60, hitboxWidth: 88, hitboxHeight: 128,
-      hp: 1, dx: 2, active: true, patrolMin: platformX, patrolMax: platformX + platformWidth - 248
+      x: platformX + 20,
+      y: platformY - 248,
+      width: 248,
+      height: 248,
+      hitboxOffsetX: 80,
+      hitboxOffsetY: 60,
+      hitboxWidth: 88,
+      hitboxHeight: 128,
+      hp: 1,
+      dx: 2,
+      active: true,
+      patrolMin: platformX,
+      patrolMax: platformX + platformWidth - 248
     });
   }
 
   blocks.push({
-    x: segmentStart + 300, y: 120, width: 160, height: 40,
-    floating: true, dx: 2, range: { min: segmentStart + 200, max: segmentStart + 400 }
+    x: segmentStart + 300,
+    y: 120,
+    width: 160,
+    height: 40,
+    floating: true,
+    dx: 2,
+    range: { min: segmentStart + 200, max: segmentStart + 400 }
   });
 
-  if (segmentEnd >= nextCheckpoint) {
-    checkpoints.push({
-      x: segmentEnd, y: groundY - 60, width: 60, height: 60,
-      question: "¿Cuál es la capital de España?", answer: "Madrid", triggered: false
-    });
-    nextCheckpoint += 2000;
+  if (segmentEnd >= nextCheckpoint && questionBank.length > usedQuestions.size) {
+    const availableQuestions = questionBank.filter(q => !usedQuestions.has(q.question));
+    if (availableQuestions.length > 0) {
+      const q = availableQuestions[Math.floor(Math.random() * availableQuestions.length)];
+      usedQuestions.add(q.question);
+
+      checkpoints.push({
+        x: segmentEnd,
+        y: groundY - 60,
+        width: 60,
+        height: 60,
+        question: q.question,
+        answer: q.answer,
+        triggered: false
+      });
+
+      nextCheckpoint += 2000;
+    }
   }
 
   lastSpawnX = segmentEnd;
 }
-
-// 🔄 8. Actualización de Entidades
 function updatePlayer() {
-  if (keys['ArrowRight']) { player.x += 4; player.direction = 'right'; }
-  if (keys['ArrowLeft']) { player.x -= 4; player.direction = 'left'; }
+  if (keys['ArrowRight']) {
+    player.x += 4;
+    player.direction = 'right';
+  }
+  if (keys['ArrowLeft']) {
+    player.x -= 4;
+    player.direction = 'left';
+  }
 
   player.dy += 1.2;
   player.y += player.dy;
@@ -131,18 +179,24 @@ function updatePlayer() {
       height: player.hitboxHeight
     };
 
-    if (player.dy < 0 && hitbox.y <= block.y + block.height &&
-        hitbox.y + hitbox.height > block.y + block.height &&
-        hitbox.x < block.x + block.width &&
-        hitbox.x + hitbox.width > block.x) {
+    if (
+      player.dy < 0 &&
+      hitbox.y <= block.y + block.height &&
+      hitbox.y + hitbox.height > block.y + block.height &&
+      hitbox.x < block.x + block.width &&
+      hitbox.x + hitbox.width > block.x
+    ) {
       player.dy = 0;
       player.y = block.y + block.height - player.hitboxOffsetY;
     }
 
-    if (player.dy >= 0 && hitbox.y + hitbox.height >= block.y &&
-        hitbox.y < block.y &&
-        hitbox.x < block.x + block.width &&
-        hitbox.x + hitbox.width > block.x) {
+    if (
+      player.dy >= 0 &&
+      hitbox.y + hitbox.height >= block.y &&
+      hitbox.y < block.y &&
+      hitbox.x < block.x + block.width &&
+      hitbox.x + hitbox.width > block.x
+    ) {
       player.y = block.y - player.hitboxOffsetY - player.hitboxHeight;
       player.dy = 0;
       player.grounded = true;
@@ -214,7 +268,6 @@ function updateCoins() {
     if (detectCollision(player, coin)) {
       score += 5;
       scoreDisplay.textContent = score;
-      coinSound.play();
       return false;
     }
     return true;
@@ -235,30 +288,31 @@ function checkCheckpoints() {
   });
 }
 
-// 🖼️ 9. Renderizado
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
   ctx.translate(-player.x + canvas.width / 2, 0);
 
   const img = player.direction === 'right' ? playerRightImg : playerLeftImg;
-  ctx.drawImage(img, player.x, player.y, player.width, player.height);
+  if (img.complete && img.naturalWidth !== 0) {
+    ctx.drawImage(img, player.x, player.y, player.width, player.height);
+  }
 
-    ctx.fillStyle = 'gray';
+  ctx.fillStyle = 'gray';
   blocks.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
 
   ctx.fillStyle = 'gold';
   coins.forEach(c => ctx.fillRect(c.x, c.y, c.width, c.height));
 
   enemies.forEach(e => {
-    const img = e.dx >= 0 ? enemyRightImg : enemyLeftImg;
-    ctx.drawImage(img, e.x, e.y, e.width, e.height);
+    const eImg = e.dx >= 0 ? enemyRightImg : enemyLeftImg;
+    if (eImg.complete && eImg.naturalWidth !== 0) {
+      ctx.drawImage(eImg, e.x, e.y, e.width, e.height);
+    }
   });
 
   ctx.fillStyle = 'purple';
-  checkpoints.forEach(cp => {
-    ctx.fillRect(cp.x, cp.y, cp.width, cp.height);
-  });
+  checkpoints.forEach(cp => ctx.fillRect(cp.x, cp.y, cp.width, cp.height));
 
   if (debugMode) {
     ctx.strokeStyle = 'red';
@@ -280,25 +334,18 @@ function draw() {
     });
 
     ctx.strokeStyle = 'gray';
-    blocks.forEach(b => {
-      ctx.strokeRect(b.x, b.y, b.width, b.height);
-    });
+    blocks.forEach(b => ctx.strokeRect(b.x, b.y, b.width, b.height));
 
     ctx.strokeStyle = 'gold';
-    coins.forEach(c => {
-      ctx.strokeRect(c.x, c.y, c.width, c.height);
-    });
+    coins.forEach(c => ctx.strokeRect(c.x, c.y, c.width, c.height));
 
     ctx.strokeStyle = 'purple';
-    checkpoints.forEach(cp => {
-      ctx.strokeRect(cp.x, cp.y, cp.width, cp.height);
-    });
+    checkpoints.forEach(cp => ctx.strokeRect(cp.x, cp.y, cp.width, cp.height));
   }
 
   ctx.restore();
 }
 
-// 🔁 10. Bucle Principal del Juego
 function gameLoop() {
   if (!paused) {
     updatePlayer();
@@ -310,7 +357,3 @@ function gameLoop() {
   }
   requestAnimationFrame(gameLoop);
 }
-
-
-
-
