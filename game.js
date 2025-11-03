@@ -251,13 +251,19 @@ function updateEnemies() {
   enemies.forEach(en => {
     if (!en.active || dying) return;
 
-    const distance = Math.abs(en.x - player.x);
-    const speed = 2;
+    en.x += en.dx * speed;
 
-    if (distance < 300) {
-      en.dx = player.x > en.x ? 1 : -1;
-    }
-en.x += en.dx * speed;
+    const nextX = en.x + (en.dx > 0 ? en.width : -5);
+const nextY = en.y + en.height - 5;
+const blocked = blocks.some(block =>
+  nextX < block.x + block.width &&
+  nextX + 5 > block.x &&
+  nextY < block.y + block.height &&
+  nextY + 5 > block.y
+);
+
+if (blocked || en.x < 40) en.dx *= -1;
+
 
 // 🚫 Bloqueo contra la pared izquierda
 if (en.x < 40) {
@@ -530,5 +536,6 @@ async function uploadLeaderboardToGitHub() {
     console.error('Error al conectar con GitHub:', error);
   }
 }
+
 
 
