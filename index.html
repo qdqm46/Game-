@@ -17,6 +17,20 @@
     <span>❤️ Vidas: <span id="lives">3</span></span>
     <span>⭐ Puntos: <span id="score">0</span></span>
   </div>
+  
+<div id="pause-menu" class="overlay" style="display:none;">
+  <div class="pause-box">
+    <h1>⏸️ Pausa</h1>
+    <p>⭐ Puntuación: <span id="pause-score">0</span></p>
+    <p>🪙 Monedas: <span id="pause-coins">0</span></p>
+    <p>📏 Distancia: <span id="pause-distance">0</span> px</p>
+
+    <h2>🏆 Top 10</h2>
+    <ol id="pause-leaderboard"></ol>
+
+    <button onclick="closePauseMenu()">Continuar</button>
+  </div>
+</div>
 
   <div id="game-over-screen" class="overlay" style="display:none;">
     <div class="game-over-box">
@@ -35,3 +49,4 @@
   <script src="game.js"></script>
 </body>
 </html>
+
