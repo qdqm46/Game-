@@ -143,6 +143,106 @@ function generateWorldSegment() {
 
   lastSpawnX = segmentEnd;
 }
+
+function updatePlayer() {
+  if (keys['ArrowRight']) player.x += 4;
+  if (keys['ArrowLeft']) player.x -= 4;
+
+  player.dy += 1.2;
+  player.y += player.dy;
+
+  if (player.y + player.height >= groundY) {
+    player.y = groundY - player.height;
+    player.dy = 0;
+    player.grounded = true;
+  }
+
+  if (keys['Space'] && player.grounded) {
+    player.dy = -24;
+    player.grounded = false;
+  }
+
+  blocks.forEach(block => {
+    const px = player.x;
+    const py = player.y;
+    const pw = player.width;
+    const ph = player.height;
+
+    const bx = block.x;
+    const by = block.y;
+    const bw = block.width;
+    const bh = block.height;
+
+    if (
+      py + ph > by &&
+      py < by &&
+      px + pw > bx &&
+      px < bx + bw &&
+      player.dy >= 0
+    ) {
+      player.y = by - ph;
+      player.dy = 0;
+      player.grounded = true;
+    }
+
+    if (
+      py < by + bh &&
+      py + ph > by + bh &&
+      px + pw > bx &&
+      px < bx + bw &&
+      player.dy < 0
+    ) {
+      player.dy = 0;
+      player.y = by + bh;
+    }
+  });
+
+  if (player.x + canvas.width > lastSpawnX - 400) {
+    generateWorldSegment();
+  }
+}
+
+function updateEnemies() {
+  enemies.forEach(en => {
+    if (!en.active) return;
+
+    en.x += en.dx;
+
+    blocks.forEach(block => {
+      if (block.width === 40 && detectCollision(en, block)) {
+        en.dx *= -1;
+      }
+    });
+
+    if (detectCollision(player, en)) {
+      lives--;
+      livesDisplay.textContent = lives;
+
+      if (lives <= 0) {
+        mostrarPreguntaTestVisual(correcta => {
+          if (correcta) {
+            alert("¡Correcto! Has ganado una vida extra.");
+            lives = 1;
+            livesDisplay.textContent = lives;
+            player.x = 100;
+            player.y = groundY - player.height;
+          } else {
+            alert("Has perdido. Recarga la página para intentarlo de nuevo.");
+          }
+        });
+      } else {
+        if (checkpointGuardado) {
+          player.x = checkpointGuardado.x;
+          player.y = checkpointGuardado.y;
+        } else {
+          player.x = 100;
+          player.y = groundY - player.height;
+        }
+      }
+    }
+  });
+}
+
 function updateCoins() {
   coins.forEach((coin, i) => {
     const hitbox = {
@@ -187,7 +287,7 @@ function draw() {
   ctx.fillStyle = 'gold';
   coins.forEach(c => ctx.fillRect(c.x, c.y, c.width, c.height));
 
-  ctx.fillStyle = 'purple';
+    ctx.fillStyle = 'purple';
   checkpoints.forEach(cp => ctx.fillRect(cp.x, cp.y, cp.width, cp.height));
 
   ctx.fillStyle = 'red';
