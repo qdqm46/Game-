@@ -93,18 +93,6 @@ function detectCollision(a, b) {
 function generateWorldSegment() {
   const segmentStart = lastSpawnX;
   const segmentEnd = segmentStart + 800;
-  
-for (let i = segmentStart + 200; i < segmentEnd; i += 400) {
-  if (Math.random() < 0.6) { // más frecuentes
-    const wallHeight = canvas.height * 0.8;
-    blocks.push({
-      x: i,
-      y: groundY - wallHeight,
-      width: 40,
-      height: wallHeight
-    });
-  }
-}
 
   // 🧱 Pared izquierda infinita
   if (segmentStart === 0) {
@@ -119,6 +107,10 @@ for (let i = segmentStart + 200; i < segmentEnd; i += 400) {
   for (let i = segmentStart; i < segmentEnd; i += 40) {
     blocks.push({ x: i, y: groundY - 40, width: 40, height: 40 });
   }
+
+  // ... resto del código sin cambios
+
+
   for (let i = segmentStart + 400; i < segmentEnd; i += 800) {
     if (Math.random() < 0.3) {
       const skyY = groundY - 600 - Math.floor(Math.random() * 200);
@@ -210,9 +202,7 @@ function updatePlayer() {
     player.x -= 4;
     player.direction = 'left';
   }
-  if (player.x < 40) {
-    player.x = 40;
-  }
+
   player.dy += 1.2;
   player.y += player.dy;
 
@@ -263,24 +253,12 @@ function updateEnemies() {
   enemies.forEach(en => {
     if (!en.active || dying) return;
 
-    en.x += en.dx * speed;
+    const distance = Math.abs(en.x - player.x);
+    const speed = 2;
 
-    const nextX = en.x + (en.dx > 0 ? en.width : -5);
-const nextY = en.y + en.height - 5;
-const blocked = blocks.some(block =>
-  nextX < block.x + block.width &&
-  nextX + 5 > block.x &&
-  nextY < block.y + block.height &&
-  nextY + 5 > block.y
-);
-
-if (blocked || en.x < 40) en.dx *= -1;
-
-
-// 🚫 Bloqueo contra la pared izquierda
-if (en.x < 40) {
-  en.x = 40;
-}
+    if (distance < 300) {
+      en.dx = player.x > en.x ? 1 : -1;
+    }
 
     const nextX = en.x + (en.dx > 0 ? en.width : -5);
     const nextY = en.y + en.height - 5;
@@ -389,15 +367,6 @@ function draw() {
 
   ctx.fillStyle = 'gray';
   blocks.forEach(b => ctx.fillRect(b.x, b.y, b.width, b.height));
-  ctx.fillStyle = 'darkred'; // pared izquierda
-blocks.forEach(b => {
-  if (b.x === 0) {
-    ctx.fillStyle = 'darkred';
-  } else {
-    ctx.fillStyle = 'gray';
-  }
-  ctx.fillRect(b.x, b.y, b.width, b.height);
-});
 
   ctx.fillStyle = 'gold';
   coins.forEach(c => ctx.fillRect(c.x, c.y, c.width, c.height));
@@ -548,7 +517,3 @@ async function uploadLeaderboardToGitHub() {
     console.error('Error al conectar con GitHub:', error);
   }
 }
-
-
-
-
