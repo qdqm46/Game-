@@ -380,13 +380,11 @@ function openPauseMenu() {
   list.innerHTML = '';
   const leaderboard = JSON.parse(localStorage.getItem('leaderboard') || '[]');
   leaderboard.forEach(entry => {
-    const li = document.createElement('li');
-    leaderboard.forEach(entry => {
-      const li = document.createElement('li');
-      li.textContent = `${entry.name} — ${entry.score} pts`;
-      list.appendChild(li);
-    });
-  }
+  const li = document.createElement('li');
+  li.textContent = `${entry.name} — ${entry.score} pts`;
+  list.appendChild(li);
+});
+
 
   document.getElementById('pause-menu').style.display = 'flex';
   paused = true;
@@ -396,3 +394,4 @@ function closePauseMenu() {
   document.getElementById('pause-menu').style.display = 'none';
   paused = false;
 }
+
