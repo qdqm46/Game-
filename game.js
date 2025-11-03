@@ -194,6 +194,9 @@ document.addEventListener('keydown', e => {
   }
 });
 function updatePlayer() {
+  if (player.x < 40) {
+  player.x = 40;
+  }
   if (keys['ArrowRight']) {
     player.x += 4;
     player.direction = 'right';
@@ -517,3 +520,4 @@ async function uploadLeaderboardToGitHub() {
     console.error('Error al conectar con GitHub:', error);
   }
 }
+
